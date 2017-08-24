@@ -28,7 +28,8 @@
 #include "morse.h"
 
 bool DEBUG = true;
-bool HW_DEBUG = false;
+bool HW_DEBUG = true;
+bool SYS_DEBUG = true;
 
 unsigned long arTime = millis();
 unsigned long reset = millis();
@@ -46,13 +47,14 @@ bool weAreTheNight = false;
  
 unsigned int binaryCounter = 0; // 9 bits, 0 - 512
 unsigned int morseCounter = 1;  // 1 - 9
-unsigned int lynchCounter = 1;  // 1 - 9
+unsigned int lynchCounter = 1;  // 1 - 18
 unsigned int batteryCounter = 1;  // 1 - 9
 unsigned int cycles = 9;
 unsigned int actualCycle = 1;
 unsigned int actualStep = 1;  // 1 - 5
 bool endCycle = false;
 bool lynchON = false;
+unsigned int lynchFlicks[] = { 33,66,99,101,109,111,123,256,333 };
 
 String message = encode( "PWNED " );
 
@@ -65,7 +67,8 @@ int ledPinsRAND[] = { 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 /////////////////////////////////////////////////////////
 
 void setup() {
-  // put your setup code here, to run once:
+  randomSeed(analogRead(1));
+  
   for(unsigned int i=0;i<9;i++){
     pinMode(ledPins[i], OUTPUT);
     digitalWrite(ledPins[i], LOW);
@@ -86,6 +89,11 @@ void loop() {
   // Avoid arduino calls between loops
   while (true) {
 
+    // Read voltage, check charge state
+    voltage = readVcc();
+    // read LDR sensor, check darkness
+    readLDR();
+
     if(HW_DEBUG){
       // Hardware Check
       if(voltage < minVoltage){
@@ -94,25 +102,27 @@ void loop() {
         }
       }else{
         arTime = millis();
-        checkLEDS();
+        if(SYS_DEBUG){
+          // system check, discard LDR readings
+          runCycle();
+        }else{
+          checkLEDS();
+        }
       }
     }else{
-      // Read voltage, check charge state
-      voltage = readVcc();
-      // read LDR sensor, check darkness
-      readLDR();
-  
       if(voltage < minVoltage || !weAreTheNight){
         // Charging or before dusk
         if(DEBUG){
           Serial.println("Low battery/It' not dark yet!");
         }
+        LEDSOFF();
         // Enter power down state for 8 s with ADC and BOD module disabled
         LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
       }else if(voltage >= minVoltage && weAreTheNight){
         // We're ON
         runCycle();
       }else{
+        LEDSOFF();
         // Enter power down state for 8 s with ADC and BOD module disabled
         LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
       }
@@ -134,6 +144,7 @@ void runCycle(){
 
   if(endCycle){
     endCycle = false;
+    randomSeed(analogRead(1));
     if(actualCycle < cycles){
       actualCycle++;
     }else{
@@ -160,6 +171,7 @@ void runCycle(){
       break;
     default:
       actualStep = 1;
+      LEDSOFF();
       LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
     break;
   }
@@ -202,7 +214,10 @@ void checkLEDS(){
  */
 void batteryMeter(){
   // min 3200, max 4500
-  int bl = map(voltage,minVoltage,4500,0,8);
+  int bl = map((int)voltage,minVoltage,4500,0,8);
+  if(DEBUG){
+    Serial.println(bl);
+  }
   for(unsigned int i=0;i<9;i++){
     if(i <= bl){
       digitalWrite(ledPins[i], HIGH);
@@ -218,6 +233,7 @@ void batteryMeter(){
     }else{
       endCycle = true;
       batteryCounter = 1;
+      LEDSOFF();
       LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
     }
   }
@@ -244,6 +260,7 @@ void binaryLED(){
     }else{
       endCycle = true;
       binaryCounter = 0;
+      LEDSOFF();
       LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
     }
   }
@@ -270,6 +287,8 @@ void binaryLEDRand(){
     }else{
       endCycle = true;
       binaryCounter = 0;
+      LEDSOFF();
+      shuffleLEDS();
       LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
     }
   }
@@ -291,11 +310,14 @@ void lynchLED(){
   if(arTime-reset > waitLynch){
     reset = millis();
     lynchON = !lynchON;
-    if(lynchCounter < cycles){
+    if(lynchCounter < cycles*2){
       lynchCounter++;
     }else{
       endCycle = true;
       lynchCounter = 1;
+      int rr = random(0,9);
+      waitLynch = lynchFlicks[rr]*timeMultiplier;
+      LEDSOFF();
       LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
     }
   }
@@ -309,25 +331,17 @@ void sendMorseMessage(){
   for(unsigned int i=0; i<=message.length(); i++){
     switch( message[i] ){
       case '.': // dit
-        for(unsigned int i=0;i<9;i++){
-          digitalWrite(ledPins[i], HIGH);
-        }
+        LEDSON();
         delay( MORSE_UNIT_TIME );
-        for(unsigned int i=0;i<9;i++){
-          digitalWrite(ledPins[i], LOW);
-        }
+        LEDSOFF();
         delay( MORSE_UNIT_TIME );
           
         break;
 
       case '-': // dah
-        for(unsigned int i=0;i<9;i++){
-          digitalWrite(ledPins[i], HIGH);
-        }
+        LEDSON();
         delay( MORSE_UNIT_TIME*3 );
-        for(unsigned int i=0;i<9;i++){
-          digitalWrite(ledPins[i], LOW);
-        }
+        LEDSOFF();
         delay( MORSE_UNIT_TIME );
           
         break;
@@ -342,6 +356,7 @@ void sendMorseMessage(){
   }else{
     endCycle = true;
     morseCounter = 1;
+    LEDSOFF();
     LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
   }
   
@@ -394,4 +409,23 @@ void shuffleLEDS(){
   }
 }
 
+/*
+ * Leds Shutdown
+ * 
+ */
+void LEDSOFF(){
+   for(unsigned int i=0;i<9;i++){
+    digitalWrite(ledPins[i], LOW);
+  }
+}
+
+/*
+ * Leds Up
+ * 
+ */
+void LEDSON(){
+   for(unsigned int i=0;i<9;i++){
+    digitalWrite(ledPins[i], HIGH);
+  }
+}
 
