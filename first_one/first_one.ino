@@ -113,10 +113,8 @@ void loop() {
         // We're ON
         runCycle();
       }else{
-        // SLEEP
-        for(unsigned int i=0;i<9;i++){
-          digitalWrite(ledPins[i], LOW);
-        }
+        // Enter power down state for 8 s with ADC and BOD module disabled
+        LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
       }
     }
     
