@@ -28,6 +28,7 @@
 #include "morse.h"
 
 bool DEBUG = true;
+bool HW_DEBUG = false;
 
 unsigned long arTime = millis();
 unsigned long reset = millis();
@@ -36,7 +37,6 @@ unsigned int MORSE_UNIT_TIME = 250*timeMultiplier;
 unsigned int wait = 150*timeMultiplier;
 unsigned int waitLynch = 33*timeMultiplier;
 unsigned int actualPin = 2;
-bool lynchON = false;
 
 int LDR = 0;
 long voltage = 0;
@@ -45,6 +45,14 @@ unsigned int ldrMinLight = 60;
 bool weAreTheNight = false; 
  
 unsigned int binaryCounter = 0; // 9 bits, 0 - 512
+unsigned int morseCounter = 1;  // 1 - 9
+unsigned int lynchCounter = 1;  // 1 - 9
+unsigned int batteryCounter = 1;  // 1 - 9
+unsigned int cycles = 9;
+unsigned int actualCycle = 1;
+unsigned int actualStep = 1;  // 1 - 5
+bool endCycle = false;
+bool lynchON = false;
 
 String message = encode( "PWNED " );
 
@@ -77,32 +85,38 @@ void setup() {
 void loop() {
   // Avoid arduino calls between loops
   while (true) {
-    
-    // Read voltage, check charge state
-    voltage = readVcc();
-    // read LDR sensor, check darkness
-    readLDR();
 
-    if(voltage < minVoltage || !weAreTheNight){
-      // Charging or before dusk
-      if(DEBUG){
-        Serial.println("Low battery/It' not dark yet!");
+    if(HW_DEBUG){
+      // Hardware Check
+      if(voltage < minVoltage){
+        if(DEBUG){
+          Serial.println("Low battery");
+        }
+      }else{
+        arTime = millis();
+        checkLEDS();
       }
-      // Enter power down state for 8 s with ADC and BOD module disabled
-      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-    }else if(voltage >= minVoltage && weAreTheNight){
-      // We're ON
-      arTime = millis();
-  
-      //checkLEDS();
-      //sendMorseMessage();
-      //binaryLED();
-      binaryLEDRand();
-      //lynchLED();
     }else{
-      // SLEEP
-      for(unsigned int i=0;i<9;i++){
-        digitalWrite(ledPins[i], LOW);
+      // Read voltage, check charge state
+      voltage = readVcc();
+      // read LDR sensor, check darkness
+      readLDR();
+  
+      if(voltage < minVoltage || !weAreTheNight){
+        // Charging or before dusk
+        if(DEBUG){
+          Serial.println("Low battery/It' not dark yet!");
+        }
+        // Enter power down state for 8 s with ADC and BOD module disabled
+        LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+      }else if(voltage >= minVoltage && weAreTheNight){
+        // We're ON
+        runCycle();
+      }else{
+        // SLEEP
+        for(unsigned int i=0;i<9;i++){
+          digitalWrite(ledPins[i], LOW);
+        }
       }
     }
     
@@ -112,6 +126,55 @@ void loop() {
 /////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////// CUSTOM FUNCTIONS
 /////////////////////////////////////////////////////////
+
+/*
+ * ONE of ·NINE· runCycle
+ * 
+ */
+void runCycle(){
+  arTime = millis();
+
+  if(endCycle){
+    endCycle = false;
+    if(actualCycle < cycles){
+      actualCycle++;
+    }else{
+      actualCycle = 1;
+      nextStep();
+    }
+  }
+
+  switch (actualStep) {
+    case 1:
+      lynchLED();
+      break;
+    case 2:
+      binaryLED();
+      break;
+    case 3:
+      binaryLEDRand();
+      break;
+    case 4:
+      sendMorseMessage();
+      break;
+    case 5:
+      batteryMeter();
+      break;
+    default:
+      actualStep = 1;
+      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+    break;
+  }
+  
+}
+
+void nextStep(){
+  if(actualStep <= 5){
+    actualStep++;
+  }else{
+    actualStep = 1;
+  }
+}
 
 /*
  * Leds check test, sequencially turning on
@@ -136,6 +199,33 @@ void checkLEDS(){
 }
 
 /*
+ * Visualize battery power with leds as meter bar
+ * 
+ */
+void batteryMeter(){
+  // min 3200, max 4500
+  int bl = map(voltage,minVoltage,4500,0,8);
+  for(unsigned int i=0;i<9;i++){
+    if(i <= bl){
+      digitalWrite(ledPins[i], HIGH);
+    }else{
+      digitalWrite(ledPins[i], LOW);
+    }
+  }
+
+  if(arTime-reset > wait){
+    reset = millis();
+    if(batteryCounter < cycles){
+      batteryCounter++;
+    }else{
+      endCycle = true;
+      batteryCounter = 1;
+      LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
+    }
+  }
+}
+
+/*
  * Simulate 9 bits binary counter (correct positions)
  * 
  */
@@ -154,7 +244,9 @@ void binaryLED(){
     if(binaryCounter < 512){
       binaryCounter++;
     }else{
+      endCycle = true;
       binaryCounter = 0;
+      LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
     }
   }
 }
@@ -178,7 +270,9 @@ void binaryLEDRand(){
     if(binaryCounter < 512){
       binaryCounter++;
     }else{
+      endCycle = true;
       binaryCounter = 0;
+      LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
     }
   }
 }
@@ -199,6 +293,13 @@ void lynchLED(){
   if(arTime-reset > waitLynch){
     reset = millis();
     lynchON = !lynchON;
+    if(lynchCounter < cycles){
+      lynchCounter++;
+    }else{
+      endCycle = true;
+      lynchCounter = 1;
+      LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
+    }
   }
 }
 
@@ -237,6 +338,15 @@ void sendMorseMessage(){
         delay( MORSE_UNIT_TIME );
     }
   }
+
+  if(morseCounter < cycles){
+    morseCounter++;
+  }else{
+    endCycle = true;
+    morseCounter = 1;
+    LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
+  }
+  
 }
 
 /*
