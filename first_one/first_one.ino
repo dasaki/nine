@@ -22,7 +22,8 @@
 */
 
 // External Libraries
-#include <LowPower.h> // https://github.com/rocketscream/Low-Power
+#include <LowPower.h>           // https://github.com/rocketscream/Low-Power
+#include "digitalWriteFast.h"   // modified version from: https://github.com/NicksonYap/digitalWriteFast
 
 // Custom Code
 #include "morse.h"
@@ -58,8 +59,8 @@ unsigned int lynchFlicks[] = { 33,66,99,101,109,111,123,256,333 };
 
 String message = encode( "PWNED " );
 
-int ledPins[] = { 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-int ledPinsRAND[] = { 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+unsigned int ledPins[] = { 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+unsigned int ledPinsRAND[] = { 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 
 
 /////////////////////////////////////////////////////////
@@ -70,8 +71,8 @@ void setup() {
   randomSeed(analogRead(1));
   
   for(unsigned int i=0;i<9;i++){
-    pinMode(ledPins[i], OUTPUT);
-    digitalWrite(ledPins[i], LOW);
+    pinModeFast(ledPins[i], OUTPUT);
+    digitalWriteFast(ledPins[i], LOW);
   }
 
   shuffleLEDS();
@@ -110,18 +111,14 @@ void loop() {
         }
       }
     }else{
-      if(voltage < minVoltage || !weAreTheNight){
+      if(voltage >= minVoltage && weAreTheNight){
+        // We're ON
+        runCycle();
+      }else{
         // Charging or before dusk
         if(DEBUG){
           Serial.println("Low battery/It' not dark yet!");
         }
-        LEDSOFF();
-        // Enter power down state for 8 s with ADC and BOD module disabled
-        LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-      }else if(voltage >= minVoltage && weAreTheNight){
-        // We're ON
-        runCycle();
-      }else{
         LEDSOFF();
         // Enter power down state for 8 s with ADC and BOD module disabled
         LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
@@ -192,9 +189,9 @@ void nextStep(){
  */
 void checkLEDS(){
   for(unsigned int i=0;i<9;i++){
-    digitalWrite(ledPins[i], LOW);
+    digitalWriteFast(ledPins[i], LOW);
     if(ledPins[i] == actualPin){
-      digitalWrite(ledPins[i], HIGH);
+      digitalWriteFast(ledPins[i], HIGH);
     }
   }
 
@@ -220,9 +217,9 @@ void batteryMeter(){
   }
   for(unsigned int i=0;i<9;i++){
     if(i <= bl){
-      digitalWrite(ledPins[i], HIGH);
+      digitalWriteFast(ledPins[i], HIGH);
     }else{
-      digitalWrite(ledPins[i], LOW);
+      digitalWriteFast(ledPins[i], LOW);
     }
   }
 
@@ -247,9 +244,9 @@ void binaryLED(){
 
   for(unsigned int i=0;i<9;i++){
     if(bitRead(binaryCounter,i) == 0){
-      digitalWrite(ledPins[i], LOW);
+      digitalWriteFast(ledPins[i], LOW);
     }else if(bitRead(binaryCounter,i) == 1){
-      digitalWrite(ledPins[i], HIGH);
+      digitalWriteFast(ledPins[i], HIGH);
     }
   }
 
@@ -274,9 +271,9 @@ void binaryLEDRand(){
 
   for(unsigned int i=0;i<9;i++){
     if(bitRead(binaryCounter,i) == 0){
-      digitalWrite(ledPinsRAND[i], LOW);
+      digitalWriteFast(ledPinsRAND[i], LOW);
     }else if(bitRead(binaryCounter,i) == 1){
-      digitalWrite(ledPinsRAND[i], HIGH);
+      digitalWriteFast(ledPinsRAND[i], HIGH);
     }
   }
 
@@ -301,9 +298,9 @@ void binaryLEDRand(){
 void lynchLED(){
    for(unsigned int i=0;i<9;i++){
     if(lynchON){
-      digitalWrite(ledPins[i], HIGH);
+      digitalWriteFast(ledPins[i], HIGH);
     }else{
-      digitalWrite(ledPins[i], LOW);
+      digitalWriteFast(ledPins[i], LOW);
     }
   }
 
@@ -415,7 +412,7 @@ void shuffleLEDS(){
  */
 void LEDSOFF(){
    for(unsigned int i=0;i<9;i++){
-    digitalWrite(ledPins[i], LOW);
+    digitalWriteFast(ledPins[i], LOW);
   }
 }
 
@@ -425,7 +422,7 @@ void LEDSOFF(){
  */
 void LEDSON(){
    for(unsigned int i=0;i<9;i++){
-    digitalWrite(ledPins[i], HIGH);
+    digitalWriteFast(ledPins[i], HIGH);
   }
 }
 
