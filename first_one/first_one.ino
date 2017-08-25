@@ -55,7 +55,7 @@ unsigned int actualCycle = 1;
 unsigned int actualStep = 1;  // 1 - 5
 bool endCycle = false;
 bool lynchON = false;
-unsigned int lynchFlicks[] = { 33,66,99,101,109,111,123,256,333 };
+unsigned int lynchFlicks[] = { 33,66,99,101,106,109,123,132,161 };
 
 String message = encode( "PWNED " );
 
@@ -312,6 +312,7 @@ void lynchLED(){
     }else{
       endCycle = true;
       lynchCounter = 1;
+      randomSeed(analogRead(1));
       int rr = random(0,9);
       waitLynch = lynchFlicks[rr]*timeMultiplier;
       LEDSOFF();
