@@ -32,12 +32,13 @@ bool DEBUG = true;
 bool HW_DEBUG = true;
 bool SYS_DEBUG = true;
 
+#define MORSE_UNIT_TIME SLEEP_250MS
+
 unsigned long arTime = millis();
 unsigned long reset = millis();
-unsigned int timeMultiplier = 1; // x1
-unsigned int MORSE_UNIT_TIME = 250*timeMultiplier;
-unsigned int wait = 150*timeMultiplier;
-unsigned int waitLynch = 33*timeMultiplier;
+unsigned int TIME_MULTIPLIER = 1; // x1
+unsigned int WAIT = 150*TIME_MULTIPLIER;
+unsigned int waitLynch = 33*TIME_MULTIPLIER;
 unsigned int actualPin = 2;
 
 int LDR = 0;
@@ -121,7 +122,7 @@ void loop() {
         }
         LEDSOFF();
         // Enter power down state for 8 s with ADC and BOD module disabled
-        LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+        doPowerDown(SLEEP_8S, TIME_MULTIPLIER);
       }
     }
     
@@ -146,7 +147,8 @@ void runCycle(){
       actualCycle++;
     }else{
       actualCycle = 1;
-      nextStep();
+      actualStep++;
+      if (actualStep > 5) actualStep = 1;
     }
   }
 
@@ -169,18 +171,10 @@ void runCycle(){
     default:
       actualStep = 1;
       LEDSOFF();
-      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+      doPowerDown(SLEEP_8S, TIME_MULTIPLIER);
     break;
   }
   
-}
-
-void nextStep(){
-  if(actualStep <= 5){
-    actualStep++;
-  }else{
-    actualStep = 1;
-  }
 }
 
 /*
@@ -195,7 +189,7 @@ void checkLEDS(){
     }
   }
 
-  if(arTime-reset > wait){
+  if(arTime-reset > WAIT){
     reset = millis();
     if(actualPin < 10){
       actualPin++;
@@ -223,7 +217,7 @@ void batteryMeter(){
     }
   }
 
-  if(arTime-reset > wait){
+  if(arTime-reset > WAIT){
     reset = millis();
     if(batteryCounter < cycles){
       batteryCounter++;
@@ -231,9 +225,22 @@ void batteryMeter(){
       endCycle = true;
       batteryCounter = 1;
       LEDSOFF();
-      LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
+      doPowerDown(SLEEP_4S, TIME_MULTIPLIER);
+      
     }
   }
+}
+
+
+/*
+ * Power down auxiliary function
+ * 
+ */
+void doPowerDown(uint8_t sleepTime, uint8_t sleepCount) {
+        do {
+          LowPower.powerDown(sleepTime, ADC_OFF, BOD_OFF);
+          sleepCount--;
+        } while (sleepCount > 0);
 }
 
 /*
@@ -250,7 +257,7 @@ void binaryLED(){
     }
   }
 
-  if(arTime-reset > wait){
+  if(arTime-reset > WAIT){
     reset = millis();
     if(binaryCounter < 512){
       binaryCounter++;
@@ -258,7 +265,7 @@ void binaryLED(){
       endCycle = true;
       binaryCounter = 0;
       LEDSOFF();
-      LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
+      doPowerDown(SLEEP_4S, TIME_MULTIPLIER);
     }
   }
 }
@@ -277,7 +284,7 @@ void binaryLEDRand(){
     }
   }
 
-  if(arTime-reset > wait){
+  if(arTime-reset > WAIT){
     reset = millis();
     if(binaryCounter < 512){
       binaryCounter++;
@@ -286,7 +293,7 @@ void binaryLEDRand(){
       binaryCounter = 0;
       LEDSOFF();
       shuffleLEDS();
-      LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
+      doPowerDown(SLEEP_4S, TIME_MULTIPLIER);
     }
   }
 }
@@ -314,9 +321,9 @@ void lynchLED(){
       lynchCounter = 1;
       randomSeed(analogRead(1));
       int rr = random(0,9);
-      waitLynch = lynchFlicks[rr]*timeMultiplier;
+      waitLynch = lynchFlicks[rr]*TIME_MULTIPLIER;
       LEDSOFF();
-      LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
+      doPowerDown(SLEEP_4S, TIME_MULTIPLIER);
     }
   }
 }
@@ -330,18 +337,16 @@ void sendMorseMessage(){
     switch( message[i] ){
       case '.': // dit
         LEDSON();
-        delay( MORSE_UNIT_TIME );
+        doPowerDown(MORSE_UNIT_TIME, TIME_MULTIPLIER);
         LEDSOFF();
-        delay( MORSE_UNIT_TIME );
-          
+        doPowerDown(MORSE_UNIT_TIME, TIME_MULTIPLIER);
         break;
 
       case '-': // dah
         LEDSON();
-        delay( MORSE_UNIT_TIME*3 );
+        doPowerDown(MORSE_UNIT_TIME, 3*TIME_MULTIPLIER);   
         LEDSOFF();
-        delay( MORSE_UNIT_TIME );
-          
+        doPowerDown(MORSE_UNIT_TIME, TIME_MULTIPLIER);  
         break;
 
       case ' ': //gap
@@ -355,7 +360,7 @@ void sendMorseMessage(){
     endCycle = true;
     morseCounter = 1;
     LEDSOFF();
-    LowPower.powerDown(SLEEP_4S, ADC_OFF, BOD_OFF);
+    doPowerDown(SLEEP_4S, TIME_MULTIPLIER);
   }
   
 }
@@ -426,4 +431,3 @@ void LEDSON(){
     digitalWriteFast(ledPins[i], HIGH);
   }
 }
-
