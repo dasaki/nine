@@ -33,6 +33,8 @@ bool HW_DEBUG = true;
 bool SYS_DEBUG = true;
 
 #define MORSE_UNIT_TIME SLEEP_250MS
+#define NUM_LEDS 9
+#define LDR_PIN A0
 
 unsigned long arTime = millis();
 unsigned long reset = millis();
@@ -71,7 +73,7 @@ unsigned int ledPinsRAND[] = { 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 void setup() {
   randomSeed(analogRead(1));
   
-  for(unsigned int i=0;i<9;i++){
+  for(unsigned int i=0;i<NUM_LEDS;i++){
     pinModeFast(ledPins[i], OUTPUT);
     digitalWriteFast(ledPins[i], LOW);
   }
@@ -182,7 +184,7 @@ void runCycle(){
  * 
  */
 void checkLEDS(){
-  for(unsigned int i=0;i<9;i++){
+  for(unsigned int i=0;i<NUM_LEDS;i++){
     digitalWriteFast(ledPins[i], LOW);
     if(ledPins[i] == actualPin){
       digitalWriteFast(ledPins[i], HIGH);
@@ -209,7 +211,7 @@ void batteryMeter(){
   if(DEBUG){
     Serial.println(bl);
   }
-  for(unsigned int i=0;i<9;i++){
+  for(unsigned int i=0;i<NUM_LEDS;i++){
     if(i <= bl){
       digitalWriteFast(ledPins[i], HIGH);
     }else{
@@ -249,7 +251,7 @@ void doPowerDown(uint8_t sleepTime, uint8_t sleepCount) {
  */
 void binaryLED(){
 
-  for(unsigned int i=0;i<9;i++){
+  for(unsigned int i=0;i<NUM_LEDS;i++){
     if(bitRead(binaryCounter,i) == 0){
       digitalWriteFast(ledPins[i], LOW);
     }else if(bitRead(binaryCounter,i) == 1){
@@ -276,7 +278,7 @@ void binaryLED(){
  */
 void binaryLEDRand(){
 
-  for(unsigned int i=0;i<9;i++){
+  for(unsigned int i=0;i<NUM_LEDS;i++){
     if(bitRead(binaryCounter,i) == 0){
       digitalWriteFast(ledPinsRAND[i], LOW);
     }else if(bitRead(binaryCounter,i) == 1){
@@ -303,7 +305,7 @@ void binaryLEDRand(){
  * 
  */
 void lynchLED(){
-   for(unsigned int i=0;i<9;i++){
+   for(unsigned int i=0;i<NUM_LEDS;i++){
     if(lynchON){
       digitalWriteFast(ledPins[i], HIGH);
     }else{
@@ -370,7 +372,7 @@ void sendMorseMessage(){
  * 
  */
 void readLDR(){
-  LDR = analogRead(A0);
+  LDR = analogRead(LDR_PIN);
 
   if(LDR < ldrMinLight){
     weAreTheNight = true;
@@ -404,8 +406,8 @@ long readVcc() {
  * 
  */
 void shuffleLEDS(){
-  for (int a=0; a<9; a++){
-    int r = random(a,8);
+  for (int a=0; a<NUM_LEDS; a++){
+    int r = random(a,NUM_LEDS-1);
     int temp = ledPinsRAND[a];
     ledPinsRAND[a] = ledPinsRAND[r];
     ledPinsRAND[r] = temp;
@@ -417,7 +419,7 @@ void shuffleLEDS(){
  * 
  */
 void LEDSOFF(){
-   for(unsigned int i=0;i<9;i++){
+   for(unsigned int i=0;i<NUM_LEDS;i++){
     digitalWriteFast(ledPins[i], LOW);
   }
 }
@@ -427,7 +429,7 @@ void LEDSOFF(){
  * 
  */
 void LEDSON(){
-   for(unsigned int i=0;i<9;i++){
+   for(unsigned int i=0;i<NUM_LEDS;i++){
     digitalWriteFast(ledPins[i], HIGH);
   }
 }
