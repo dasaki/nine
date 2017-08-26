@@ -32,6 +32,7 @@ bool DEBUG = true;
 bool HW_DEBUG = true;
 bool SYS_DEBUG = true;
 
+#define TIME_MULTIPLIER 1
 #define MORSE_UNIT_TIME SLEEP_250MS
 #define NUM_LEDS        9
 #define LDR_PIN         A0
@@ -44,7 +45,6 @@ bool SYS_DEBUG = true;
 
 unsigned long arTime         = millis();
 unsigned long reset          = millis();
-unsigned int TIME_MULTIPLIER = 1; // x1
 unsigned int WAIT            = 150*TIME_MULTIPLIER;
 unsigned int waitLynch       = 33*TIME_MULTIPLIER;
 unsigned int actualPin       = 2;
