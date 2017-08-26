@@ -33,37 +33,40 @@ bool HW_DEBUG = true;
 bool SYS_DEBUG = true;
 
 #define MORSE_UNIT_TIME SLEEP_250MS
-#define NUM_LEDS 9
-#define LDR_PIN A0
+#define NUM_LEDS        9
+#define LDR_PIN         A0
+#define NUM_CYCLES      9
+#define MIN_VOLTAGE     3200
+#define MAX_VOLTAGE     4500
+#define LDR_MIDNIGHT    60
+#define MAX_BIN_COUNT   512
 
-unsigned long arTime = millis();
-unsigned long reset = millis();
+
+unsigned long arTime         = millis();
+unsigned long reset          = millis();
 unsigned int TIME_MULTIPLIER = 1; // x1
-unsigned int WAIT = 150*TIME_MULTIPLIER;
-unsigned int waitLynch = 33*TIME_MULTIPLIER;
-unsigned int actualPin = 2;
+unsigned int WAIT            = 150*TIME_MULTIPLIER;
+unsigned int waitLynch       = 33*TIME_MULTIPLIER;
+unsigned int actualPin       = 2;
 
-int LDR = 0;
-long voltage = 0;
-unsigned int minVoltage = 3200;
-unsigned int ldrMinLight = 60;
+int LDR            = 0;
+long voltage       = 0;
 bool weAreTheNight = false; 
  
-unsigned int binaryCounter = 0; // 9 bits, 0 - 512
-unsigned int morseCounter = 1;  // 1 - 9
-unsigned int lynchCounter = 1;  // 1 - 18
+unsigned int binaryCounter  = 0; // 9 bits, 0 - 512
+unsigned int morseCounter   = 1;  // 1 - 9
+unsigned int lynchCounter   = 1;  // 1 - 18
 unsigned int batteryCounter = 1;  // 1 - 9
-unsigned int cycles = 9;
-unsigned int actualCycle = 1;
-unsigned int actualStep = 1;  // 1 - 5
-bool endCycle = false;
-bool lynchON = false;
-unsigned int lynchFlicks[] = { 33,66,99,101,106,109,123,132,161 };
+unsigned int actualCycle    = 1;
+unsigned int actualStep     = 1;  // 1 - 5
+bool endCycle               = false;
+bool lynchON                = false;
+unsigned int lynchFlicks[]  = { 33,66,99,101,106,109,123,132,161 };
 
-String message = encode( "PWNED " );
+String message              = encode( "PWNED " );
 
-unsigned int ledPins[] = { 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-unsigned int ledPinsRAND[] = { 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+unsigned int ledPins[]      = { 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+unsigned int ledPinsRAND[]  = { 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 
 
 /////////////////////////////////////////////////////////
@@ -100,7 +103,7 @@ void loop() {
 
     if(HW_DEBUG){
       // Hardware Check
-      if(voltage < minVoltage){
+      if(voltage < MIN_VOLTAGE){
         if(DEBUG){
           Serial.println("Low battery");
         }
@@ -114,7 +117,7 @@ void loop() {
         }
       }
     }else{
-      if(voltage >= minVoltage && weAreTheNight){
+      if(voltage >= MIN_VOLTAGE && weAreTheNight){
         // We're ON
         runCycle();
       }else{
@@ -145,7 +148,7 @@ void runCycle(){
   if(endCycle){
     endCycle = false;
     randomSeed(analogRead(1));
-    if(actualCycle < cycles){
+    if(actualCycle < NUM_CYCLES){
       actualCycle++;
     }else{
       actualCycle = 1;
@@ -207,7 +210,7 @@ void checkLEDS(){
  */
 void batteryMeter(){
   // min 3200, max 4500
-  int bl = map((int)voltage,minVoltage,4500,0,8);
+  int bl = map((int)voltage,MIN_VOLTAGE,MAX_VOLTAGE,0,NUM_LEDS);
   if(DEBUG){
     Serial.println(bl);
   }
@@ -221,7 +224,7 @@ void batteryMeter(){
 
   if(arTime-reset > WAIT){
     reset = millis();
-    if(batteryCounter < cycles){
+    if(batteryCounter < NUM_CYCLES){
       batteryCounter++;
     }else{
       endCycle = true;
@@ -261,7 +264,7 @@ void binaryLED(){
 
   if(arTime-reset > WAIT){
     reset = millis();
-    if(binaryCounter < 512){
+    if(binaryCounter < MAX_BIN_COUNT){
       binaryCounter++;
     }else{
       endCycle = true;
@@ -316,7 +319,7 @@ void lynchLED(){
   if(arTime-reset > waitLynch){
     reset = millis();
     lynchON = !lynchON;
-    if(lynchCounter < cycles*2){
+    if(lynchCounter < NUM_CYCLES*2){
       lynchCounter++;
     }else{
       endCycle = true;
@@ -356,7 +359,7 @@ void sendMorseMessage(){
     }
   }
 
-  if(morseCounter < cycles){
+  if(morseCounter < NUM_CYCLES){
     morseCounter++;
   }else{
     endCycle = true;
@@ -374,7 +377,7 @@ void sendMorseMessage(){
 void readLDR(){
   LDR = analogRead(LDR_PIN);
 
-  if(LDR < ldrMinLight){
+  if(LDR < LDR_MIDNIGHT){
     weAreTheNight = true;
   }else{
     weAreTheNight = false;
