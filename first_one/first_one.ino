@@ -37,7 +37,7 @@ bool SYS_DEBUG = true;
 #define NUM_LEDS        9
 #define LDR_PIN         A0
 #define NUM_CYCLES      9
-#define MIN_VOLTAGE     3200
+#define MIN_VOLTAGE     3500
 #define MAX_VOLTAGE     4500
 #define LDR_MIDNIGHT    60
 #define MAX_BIN_COUNT   512
